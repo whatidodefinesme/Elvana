@@ -75,7 +75,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "gsap": "^3.14.2",
+    "@fiddle-digital/string-tune": "^1.1.53",
     "lenis": "^1.3.21"
   }
 }

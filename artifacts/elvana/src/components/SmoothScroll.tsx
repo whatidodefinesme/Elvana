@@ -1,38 +1,35 @@
-import { useEffect, ReactNode } from "react";
+import { useEffect, ReactNode, useRef } from "react";
 import Lenis from "lenis";
-import gsap from "gsap";
-import ScrollTrigger from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
-
-// Expose lenis globally so ScrollTrigger stays in sync
-declare global {
-  interface Window { _lenis?: Lenis }
-}
+import { initStringTune, syncStringTuneFromLenis } from "@/lib/stringTuneBootstrap";
 
 export function SmoothScroll({ children }: { children: ReactNode }) {
+  const rafRef = useRef<number>(0);
+
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.25,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
       smoothWheel: true,
+      syncTouch: true,
       wheelMultiplier: 0.9,
       touchMultiplier: 1.8,
     });
 
     window._lenis = lenis;
 
-    // Keep ScrollTrigger in sync with Lenis
-    lenis.on("scroll", ScrollTrigger.update);
+    const disposeStringTune = initStringTune();
 
-    // Drive lenis with GSAP's ticker (ensures sync with GSAP animations)
-    const tick = (time: number) => lenis.raf(time * 1000);
-    gsap.ticker.add(tick);
-    gsap.ticker.lagSmoothing(0);
+    const tick = (time: number) => {
+      lenis.raf(time);
+      syncStringTuneFromLenis(lenis);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
 
     return () => {
-      gsap.ticker.remove(tick);
+      cancelAnimationFrame(rafRef.current);
+      disposeStringTune();
       lenis.destroy();
       delete window._lenis;
     };

@@ -65,6 +65,21 @@
   a, button, [role="button"], input, textarea, select {
     cursor: none;
   }
+
+  /* Keyboard users: visible focus despite cursor:none (WCAG 2.4.7) */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
+  }
 }
 
 @layer utilities {
@@ -78,5 +93,254 @@
 
   .font-serif {
     font-family: var(--font-serif);
+  }
+}
+
+/* ── StringTune: consume --progress / --hero / --page / --why / --insight / --progress-slice ── */
+
+/* Progress bar: StringTune --page (string-tune.fiddle.digital–style supervision read) */
+.st-scroll-progress {
+  transform: scaleX(var(--page, 0));
+  transform-origin: left;
+  box-shadow: 0 0 14px rgba(222, 212, 230, 0.28);
+}
+
+/* ── StringSplit: hero = time-staggered chars; sections = scroll --progress from parent ── */
+
+.st-split-hero .-s-line {
+  overflow: hidden;
+  padding-bottom: 0.12em;
+}
+
+.st-split-hero .-s-char {
+  display: inline-block;
+  transform: translate3d(0, 115%, 0);
+  opacity: 0;
+  animation: stSplitHeroChar 1.05s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(0.42s + var(--line-index, 0) * 0.05s + var(--char-index, 0) * 0.022s);
+  will-change: transform, opacity;
+}
+
+@keyframes stSplitHeroChar {
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.st-split-section .-s-line,
+.st-split-waitlist .-s-line {
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+
+.st-split-section .-s-char,
+.st-split-waitlist .-s-char {
+  display: inline-block;
+  opacity: var(--progress);
+  transform: translateY(calc((1 - var(--progress)) * 1.08em));
+  will-change: transform, opacity;
+}
+
+.st-hero-parallax {
+  transform: translateY(calc(var(--hero) * 20vh));
+  will-change: transform;
+}
+
+.st-hero-watermark {
+  display: block;
+  transform: translateY(8%);
+}
+
+.st-hero-parallax-head {
+  transform: translateY(calc(var(--hero) * 32vh));
+  opacity: calc(1 - var(--hero));
+  will-change: transform, opacity;
+}
+
+.st-hero-parallax-sub {
+  transform: translateY(calc(var(--hero) * 55vh));
+  opacity: calc(1 - var(--hero));
+  will-change: transform, opacity;
+}
+
+@media (max-width: 1023px) {
+  .st-hero-parallax {
+    transform: translateY(calc(var(--hero) * 12vh));
+  }
+
+  .st-hero-parallax-head {
+    transform: translateY(calc(var(--hero) * 22vh));
+    opacity: calc(1 - var(--hero) * 0.88);
+  }
+
+  .st-hero-parallax-sub {
+    transform: translateY(calc(var(--hero) * 38vh));
+    opacity: calc(1 - var(--hero) * 0.88);
+  }
+
+  .st-why-title {
+    transform: translateY(calc(var(--why) * -36px));
+  }
+
+  .st-why-cards {
+    transform: translateY(calc(var(--why) * 36px));
+  }
+}
+
+@keyframes st-hero-line {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.st-hero-line {
+  animation: st-hero-line 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.st-hero-line--0 {
+  animation-delay: 0.2s;
+}
+.st-hero-line--1 {
+  animation-delay: 0.32s;
+}
+.st-hero-line--2 {
+  animation-delay: 0.44s;
+}
+.st-hero-line--3 {
+  animation-delay: 0.56s;
+}
+.st-hero-line--4 {
+  animation-delay: 0.68s;
+}
+.st-hero-line--5 {
+  animation-delay: 0.8s;
+}
+.st-hero-line--6 {
+  animation-delay: 0.92s;
+}
+.st-hero-line--7 {
+  animation-delay: 1.04s;
+}
+.st-hero-line--8 {
+  animation-delay: 1.16s;
+}
+
+.st-magnetic {
+  transform: translate3d(
+    calc(var(--magnetic-x, 0) * 1px),
+    calc(var(--magnetic-y, 0) * 1px),
+    0
+  );
+}
+
+.st-reveal-line {
+  opacity: var(--progress);
+  transform: translateY(calc((1 - var(--progress)) * 100%));
+  will-change: transform, opacity;
+}
+
+.st-problem-card {
+  opacity: var(--progress);
+  transform: translateY(calc((1 - var(--progress)) * 60px));
+  will-change: transform, opacity;
+}
+
+.st-solution-row {
+  opacity: var(--progress);
+  transform: translateX(calc((1 - var(--progress)) * 80px));
+  will-change: transform, opacity;
+}
+
+.st-feature-item {
+  opacity: var(--progress);
+  will-change: transform, opacity;
+}
+
+.st-feature-item:nth-child(odd) {
+  transform: translateX(calc((1 - var(--progress)) * -60px));
+}
+
+.st-feature-item:nth-child(even) {
+  transform: translateX(calc((1 - var(--progress)) * 60px));
+}
+
+.st-why-title {
+  transform: translateY(calc(var(--why) * -60px));
+  will-change: transform;
+}
+
+.st-why-cards {
+  transform: translateY(calc(var(--why) * 60px));
+  will-change: transform;
+}
+
+.st-insight-ghost {
+  opacity: calc(var(--progress-slice) * 0.07);
+  transform: scale(calc(0.7 + var(--progress-slice) * 0.45));
+  will-change: transform, opacity;
+}
+
+.st-insight-quote {
+  opacity: calc(var(--progress-slice));
+  transform: translateY(calc((1 - var(--progress-slice)) * 30px))
+    scale(calc(0.88 + var(--progress-slice) * 0.16));
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-scroll-progress {
+    transform: scaleX(0) !important;
+    box-shadow: none !important;
+  }
+
+  .st-split-hero .-s-char,
+  .st-split-section .-s-char,
+  .st-split-waitlist .-s-char {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .st-hero-line {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .st-hero-parallax,
+  .st-hero-parallax-head,
+  .st-hero-parallax-sub {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .st-reveal-line,
+  .st-problem-card,
+  .st-solution-row,
+  .st-feature-item {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .st-why-title,
+  .st-why-cards {
+    transform: none !important;
+  }
+
+  .st-insight-ghost,
+  .st-insight-quote {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .st-magnetic {
+    transform: none !important;
   }
 }

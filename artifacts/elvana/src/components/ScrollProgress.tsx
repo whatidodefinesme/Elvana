@@ -1,17 +1,12 @@
-import { motion, useScroll, useSpring } from "framer-motion";
-
+/**
+ * Top reading-progress bar: mirrors StringProgress source `page` (root wrapper writes --page).
+ */
 export function ScrollProgress() {
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
-  });
-
   return (
-    <motion.div
-      className="fixed top-0 left-0 right-0 z-[9998] h-[1px] bg-[#DED4E6] origin-left"
-      style={{ scaleX }}
+    <div
+      className="st-scroll-progress fixed top-0 left-0 right-0 z-[9998] h-px origin-left bg-[#DED4E6] pointer-events-none"
+      data-string-copy-from="page"
+      aria-hidden
     />
   );
 }
