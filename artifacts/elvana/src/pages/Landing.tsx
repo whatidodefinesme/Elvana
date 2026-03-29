@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -7,29 +7,17 @@ import { Loader2, ArrowRight, Play, X, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Marquee } from "@/components/Marquee";
 import { useJoinWaitlist } from "@workspace/api-client-react";
-import gsap from "gsap";
-import ScrollTrigger from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
 
 const waitlistSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 type WaitlistFormValues = z.infer<typeof waitlistSchema>;
 
-// Line reveal wrapper — each child text "slides up" from below a mask
-function LineReveal({ children, className = "", tag: Tag = "div" as any }: {
-  children: React.ReactNode;
-  className?: string;
-  tag?: keyof JSX.IntrinsicElements;
-}) {
-  return (
-    <div className={`overflow-hidden ${className}`}>
-      <Tag className="reveal-line translate-y-full opacity-0 will-change-transform">
-        {children}
-      </Tag>
-    </div>
-  );
+function scrollToWaitlist() {
+  const el = document.getElementById("waitlist");
+  const lenis = typeof window !== "undefined" ? window._lenis : undefined;
+  if (el && lenis) lenis.scrollTo(el, { offset: 0 });
+  else el?.scrollIntoView({ behavior: "smooth" });
 }
 
 export default function Landing() {
@@ -43,166 +31,21 @@ export default function Landing() {
   });
   const joinWaitlistMutation = useJoinWaitlist();
 
+  useEffect(() => {
+    if (!successData) return;
+    window._stringTune?.onResize?.(true);
+  }, [successData]);
+
+  // Re-measure after StringSplit mutates DOM (double rAF: layout + paint before StringTune centers)
   useLayoutEffect(() => {
-    const ctx = gsap.context(() => {
-      // ── HERO TEXT REVEALS ─────────────────────────────────────────────
-      gsap.to(".hero-line", {
-        y: 0,
-        opacity: 1,
-        duration: 1.15,
-        ease: "expo.out",
-        stagger: 0.12,
-        delay: 0.2,
-      });
-
-      // ── HERO PARALLAX (scrubbed) ──────────────────────────────────────
-      gsap.to(".hero-bg-ghost", {
-        y: "20%",
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".hero-section",
-          start: "top top",
-          end: "bottom top",
-          scrub: 1.2,
-        },
-      });
-      gsap.to(".hero-headline", {
-        y: "32%",
-        opacity: 0,
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".hero-section",
-          start: "top top",
-          end: "bottom top",
-          scrub: 0.8,
-        },
-      });
-      gsap.to(".hero-sub", {
-        y: "55%",
-        opacity: 0,
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".hero-section",
-          start: "top top",
-          end: "bottom top",
-          scrub: 0.6,
-        },
-      });
-
-      // ── SECTION REVEALS (reusable) ────────────────────────────────────
-      gsap.utils.toArray<HTMLElement>(".reveal-line").forEach((el) => {
-        if (el.closest(".hero-section")) return; // hero handled separately above
-        gsap.to(el, {
-          y: 0,
-          opacity: 1,
-          duration: 1.1,
-          ease: "expo.out",
-          scrollTrigger: {
-            trigger: el,
-            start: "top 92%",
-            toggleActions: "play none none none",
-          },
-        });
-      });
-
-      // ── PROBLEM CARDS stagger ─────────────────────────────────────────
-      gsap.from(".problem-card", {
-        y: 60,
-        opacity: 0,
-        duration: 0.9,
-        ease: "expo.out",
-        stagger: 0.12,
-        scrollTrigger: {
-          trigger: ".problem-grid",
-          start: "top 80%",
-        },
-      });
-
-      // ── SOLUTIONS ROWS slide in from right ────────────────────────────
-      gsap.utils.toArray<HTMLElement>(".solution-row").forEach((el, i) => {
-        gsap.from(el, {
-          x: 80,
-          opacity: 0,
-          duration: 0.9,
-          ease: "expo.out",
-          delay: i * 0.1,
-          scrollTrigger: {
-            trigger: el,
-            start: "top 88%",
-          },
-        });
-      });
-
-      // ── INSIGHT — PINNED scrub ────────────────────────────────────────
-      const insightTl = gsap.timeline({
-        scrollTrigger: {
-          trigger: ".insight-section",
-          start: "top top",
-          end: "+=180%",
-          scrub: 1.5,
-          pin: true,
-          anticipatePin: 1,
-        },
-      });
-      insightTl
-        .from(".insight-ghost", { scale: 0.7, opacity: 0, ease: "none" })
-        .to(".insight-ghost", { scale: 1.15, opacity: 0.07, ease: "none" }, 0)
-        .from(".insight-quote", { scale: 0.88, opacity: 0, y: 30, ease: "none" }, 0)
-        .to(".insight-quote", { scale: 1, opacity: 1, y: 0, ease: "none" }, 0.3)
-        .to(".insight-quote", { scale: 1.04, opacity: 0.4, y: -20, ease: "none" }, 0.7);
-
-      // ── FEATURE ITEMS alternating sides ──────────────────────────────
-      gsap.utils.toArray<HTMLElement>(".feature-item").forEach((el, i) => {
-        const fromLeft = i % 2 === 0;
-        gsap.from(el, {
-          x: fromLeft ? -60 : 60,
-          opacity: 0,
-          duration: 0.85,
-          ease: "expo.out",
-          scrollTrigger: {
-            trigger: el,
-            start: "top 88%",
-          },
-        });
-      });
-
-      // ── WHY TITLE parallax vs cards ────────────────────────────────────
-      gsap.to(".why-title-col", {
-        y: -60,
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".why-section",
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 1,
-        },
-      });
-      gsap.to(".why-cards-col", {
-        y: 60,
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".why-section",
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 1,
-        },
-      });
-
-      // ── WAITLIST ──────────────────────────────────────────────────────
-      gsap.from(".waitlist-inner", {
-        y: 50,
-        opacity: 0,
-        duration: 1,
-        ease: "expo.out",
-        scrollTrigger: {
-          trigger: ".waitlist-inner",
-          start: "top 85%",
-        },
-      });
-
-    }, containerRef);
-
-    return () => ctx.revert();
+    let id2 = 0;
+    const id1 = requestAnimationFrame(() => {
+      id2 = requestAnimationFrame(() => window._stringTune?.onResize?.(true));
+    });
+    return () => {
+      cancelAnimationFrame(id1);
+      cancelAnimationFrame(id2);
+    };
   }, []);
 
   const onSubmit = async (data: WaitlistFormValues) => {
@@ -222,57 +65,94 @@ export default function Landing() {
   };
 
   return (
-    <div ref={containerRef} className="relative bg-background cursor-none overflow-x-hidden">
+    <div
+      ref={containerRef}
+      className="relative bg-background cursor-none overflow-x-hidden"
+      // StringProgress: full-page 0→1 timeline for top bar + scroll-driven motion
+      data-string="progress"
+      data-string-id="page"
+      data-string-key="--page"
+      data-string-easing="cubic-bezier(0.25, 0.1, 0.25, 1)"
+    >
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
-      <section className="hero-section relative min-h-[105vh] flex flex-col justify-center overflow-hidden">
+      <section
+        className="hero-section relative min-h-[105vh] flex flex-col justify-center overflow-hidden"
+        // StringProgress: hero scrub timeline exposed as --hero for children (parallax + fade)
+        data-string="progress"
+        data-string-id="hero"
+        data-string-key="--hero"
+        data-string-easing="cubic-bezier(0.33, 1, 0.68, 1)"
+      >
 
         {/* Ambient glow — drifts up on scroll */}
-        <div className="hero-bg-ghost absolute inset-0 pointer-events-none">
+        <div className="hero-bg-ghost st-hero-parallax absolute inset-0 pointer-events-none">
           <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full bg-[#DED4E6]/[0.04] blur-[130px]" />
           <div className="absolute -bottom-40 right-0 w-[600px] h-[500px] rounded-full bg-[#F1EADE]/[0.02] blur-[100px]" />
         </div>
 
         {/* Ghost watermark — slow drift */}
-        <div className="hero-bg-ghost absolute inset-0 flex items-center pointer-events-none select-none overflow-hidden">
-          <span className="font-serif text-[clamp(100px,20vw,280px)] leading-none font-bold text-foreground/[0.025] whitespace-nowrap tracking-tight pl-4 translate-y-[8%]">
+        <div className="hero-bg-ghost st-hero-parallax absolute inset-0 flex items-center pointer-events-none select-none overflow-hidden">
+          <span className="st-hero-watermark font-serif text-[clamp(100px,20vw,280px)] leading-none font-bold text-foreground/[0.025] whitespace-nowrap tracking-tight pl-4">
             ELVANA
           </span>
         </div>
 
         {/* Nav */}
         <nav className="absolute top-0 w-full px-6 md:px-14 py-8 flex justify-between items-center z-20">
-          <div className="font-serif text-[17px] tracking-[0.15em] text-primary uppercase opacity-0 hero-line translate-y-full">
+          <div className="font-serif text-[17px] tracking-[0.15em] text-primary uppercase st-hero-line st-hero-line--0">
             Elvana
           </div>
           <button
-            onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })}
-            className="font-sans text-[11px] tracking-[0.28em] uppercase text-muted-foreground hover:text-primary transition-colors duration-500 cursor-none opacity-0 hero-line translate-y-full"
+            type="button"
+            onClick={scrollToWaitlist}
+            className="font-sans text-[11px] tracking-[0.28em] uppercase text-muted-foreground hover:text-primary transition-colors duration-500 cursor-none st-hero-line st-hero-line--1"
           >
-            Join Waitlist
+            {/* StringMagnetic on inner span so it does not fight .st-hero-line keyframes */}
+            <span
+              className="st-magnetic inline-block"
+              data-string="magnetic"
+              data-string-strength="0.22"
+              data-string-radius="140"
+            >
+              Join Waitlist
+            </span>
           </button>
         </nav>
 
         {/* Hero headline — mid-speed parallax */}
-        <div className="hero-headline relative z-10 px-6 md:px-14 lg:px-24 pt-36 pb-6 max-w-6xl mx-auto w-full">
+        <div className="hero-headline st-hero-parallax-head relative z-10 px-6 md:px-14 lg:px-24 pt-36 pb-6 max-w-6xl mx-auto w-full">
           <div className="overflow-hidden mb-10">
-            <p className="hero-line font-sans text-accent tracking-[0.28em] uppercase text-[11px] translate-y-full opacity-0">
+            <p className="st-hero-line st-hero-line--2 font-sans text-accent tracking-[0.28em] uppercase text-[11px]">
               Comfort wins now — Regret pays later.
             </p>
           </div>
 
           <div className="overflow-hidden mb-3">
-            <h1 className="hero-line font-serif text-[clamp(40px,6.5vw,88px)] leading-[1.04] text-primary translate-y-full opacity-0">
+            <h1
+              className="st-split-hero font-serif text-[clamp(40px,6.5vw,88px)] leading-[1.04] text-primary"
+              // StringSplit: line + char wrappers → --line-index / --char-index for kinetic hero type
+              data-string="split"
+              data-string-split="line[center]|char-line[center]"
+            >
               People don't fail
             </h1>
           </div>
           <div className="overflow-hidden mb-3">
-            <h1 className="hero-line font-serif text-[clamp(40px,6.5vw,88px)] leading-[1.04] text-primary translate-y-full opacity-0">
+            <h1
+              className="st-split-hero font-serif text-[clamp(40px,6.5vw,88px)] leading-[1.04] text-primary"
+              data-string="split"
+              data-string-split="line[center]|char-line[center]"
+            >
               because they lack
             </h1>
           </div>
           <div className="overflow-hidden">
-            <h1 className="hero-line font-serif text-[clamp(40px,6.5vw,88px)] leading-[1.04] translate-y-full opacity-0">
+            <h1
+              className="st-split-hero font-serif text-[clamp(40px,6.5vw,88px)] leading-[1.04]"
+              data-string="split"
+              data-string-split="line[center]|char-line[center]"
+            >
               <em className="italic text-foreground/35">Goals</em>
               <span className="text-primary"> or </span>
               <em className="italic text-foreground/35">Knowledge</em>
@@ -282,9 +162,9 @@ export default function Landing() {
         </div>
 
         {/* Sub text — faster parallax */}
-        <div className="hero-sub relative z-10 px-6 md:px-14 lg:px-24 pb-28 max-w-6xl mx-auto w-full">
+        <div className="hero-sub st-hero-parallax-sub relative z-10 px-6 md:px-14 lg:px-24 pb-28 max-w-6xl mx-auto w-full">
           <div className="overflow-hidden mb-12">
-            <p className="hero-line font-sans text-lg md:text-xl text-muted-foreground max-w-md leading-relaxed translate-y-full opacity-0">
+            <p className="st-hero-line st-hero-line--6 font-sans text-lg md:text-xl text-muted-foreground max-w-md leading-relaxed">
               They fail because, in the moment, their brain chooses comfort — and guilt comes later.
             </p>
           </div>
@@ -292,8 +172,9 @@ export default function Landing() {
           <div className="flex gap-4 flex-col sm:flex-row">
             <div className="overflow-hidden">
               <button
-                onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })}
-                className="hero-line group inline-flex items-center gap-3 font-sans text-[11px] tracking-[0.28em] uppercase px-9 py-4 bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-500 cursor-none translate-y-full opacity-0"
+                type="button"
+                onClick={scrollToWaitlist}
+                className="hero-line group inline-flex items-center gap-3 font-sans text-[11px] tracking-[0.28em] uppercase px-9 py-4 bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-500 cursor-none st-hero-line st-hero-line--7"
               >
                 Get Early Access
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-500" />
@@ -301,8 +182,9 @@ export default function Landing() {
             </div>
             <div className="overflow-hidden">
               <button
+                type="button"
                 onClick={() => setIsVideoOpen(true)}
-                className="hero-line group inline-flex items-center gap-3 font-sans text-[11px] tracking-[0.28em] uppercase px-9 py-4 border border-border/25 text-muted-foreground hover:text-primary hover:border-border/60 transition-all duration-500 cursor-none translate-y-full opacity-0"
+                className="hero-line group inline-flex items-center gap-3 font-sans text-[11px] tracking-[0.28em] uppercase px-9 py-4 border border-border/25 text-muted-foreground hover:text-primary hover:border-border/60 transition-all duration-500 cursor-none st-hero-line st-hero-line--8"
               >
                 <Play className="w-3 h-3 fill-current" />
                 Watch Video
@@ -329,20 +211,39 @@ export default function Landing() {
       <section className="relative py-44 px-6 md:px-14 lg:px-24 overflow-hidden">
         {/* Ghost background — barely visible, barely moving */}
         <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none select-none">
-          <span className="font-serif text-[clamp(120px,22vw,360px)] leading-none font-bold text-foreground/[0.022] tracking-tight">
+          <span
+            className="st-glide-watermark font-serif text-[clamp(120px,22vw,360px)] leading-none font-bold text-foreground/[0.022] tracking-tight"
+            // StringGlide: scroll-energy drift (subtle; resets at rest per engine)
+            data-string="glide"
+            data-string-glide="0.42"
+            data-string-id="cycle-watermark"
+          >
             CYCLE
           </span>
         </div>
 
         <div className="relative max-w-5xl mx-auto z-10">
           <div className="mb-20">
-            <div className="overflow-hidden mb-4">
-              <span className="reveal-line font-sans text-[11px] tracking-[0.38em] uppercase text-muted-foreground/35 block translate-y-full opacity-0">
+            <div
+              className="overflow-hidden mb-4"
+              // StringProgress: line reveal via --progress on this wrapper
+              data-string="progress"
+              data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)"
+            >
+              <span className="st-reveal-line font-sans text-[11px] tracking-[0.38em] uppercase text-muted-foreground/35 block">
                 The pattern
               </span>
             </div>
-            <div className="overflow-hidden">
-              <h2 className="reveal-line font-serif text-[clamp(32px,5vw,60px)] leading-tight translate-y-full opacity-0">
+            <div
+              className="overflow-hidden"
+              data-string="progress"
+              data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)"
+            >
+              <h2
+                className="st-split-section font-serif text-[clamp(32px,5vw,60px)] leading-tight"
+                data-string="split"
+                data-string-split="line[center]|char-line[center]"
+              >
                 The Everyday Cycle
               </h2>
             </div>
@@ -354,7 +255,13 @@ export default function Landing() {
               { num: "02", title: "The Action", desc: "Scrolling, eating what you promised you wouldn't, skipping the workout, overspending." },
               { num: "03", title: "The Guilt", desc: "The immediate regret. The slow erosion of self-trust. Repeat tomorrow." },
             ].map((item, i) => (
-              <div key={i} className="problem-card bg-background">
+              <div
+                key={i}
+                className="problem-card st-problem-card bg-background"
+                // StringProgress: card fade/slide as it enters the viewport
+                data-string="progress"
+                data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)"
+              >
                 <div className="p-10 md:p-12 group relative overflow-hidden h-full">
                   <div className="absolute top-0 left-0 h-[1px] w-0 bg-gradient-to-r from-accent/50 to-transparent group-hover:w-full transition-[width] duration-700 ease-out" />
                   <span className="font-sans text-[10px] tracking-[0.38em] text-foreground/18 block mb-10">{item.num}</span>
@@ -370,34 +277,50 @@ export default function Landing() {
       </section>
 
       {/* ── WHY SOLUTIONS FAIL ─────────────────────────────────────────── */}
-      <section className="why-section relative py-44 px-6 md:px-14 lg:px-24 bg-black/20 overflow-hidden">
+      <section
+        className="why-section relative py-44 px-6 md:px-14 lg:px-24 bg-black/20 overflow-hidden"
+        // StringProgress: section scrub → --why for opposing column drift
+        data-string="progress"
+        data-string-id="why"
+        data-string-key="--why"
+        data-string-easing="cubic-bezier(0.33, 1, 0.68, 1)"
+      >
         <div className="absolute inset-0 flex items-center justify-end overflow-hidden pointer-events-none select-none pr-0">
-          <span className="font-serif text-[clamp(120px,20vw,300px)] leading-none font-bold text-foreground/[0.018] tracking-tight">
+          <span
+            className="st-glide-watermark font-serif text-[clamp(120px,20vw,300px)] leading-none font-bold text-foreground/[0.018] tracking-tight"
+            data-string="glide"
+            data-string-glide="0.35"
+            data-string-id="why-watermark"
+          >
             WHY
           </span>
         </div>
 
         <div className="relative max-w-6xl mx-auto z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
-            <div className="why-title-col lg:col-span-4 will-change-transform">
-              <div className="overflow-hidden mb-4">
-                <span className="reveal-line font-sans text-[11px] tracking-[0.38em] uppercase text-muted-foreground/35 block translate-y-full opacity-0">
+            <div className="why-title-col st-why-title lg:col-span-4 will-change-transform">
+              <div className="overflow-hidden mb-4" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+                <span className="st-reveal-line font-sans text-[11px] tracking-[0.38em] uppercase text-muted-foreground/35 block">
                   The problem
                 </span>
               </div>
-              <div className="overflow-hidden mb-6">
-                <h2 className="reveal-line font-serif text-[clamp(28px,3.5vw,48px)] leading-tight translate-y-full opacity-0">
+              <div className="overflow-hidden mb-6" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+                <h2
+                  className="st-split-section font-serif text-[clamp(28px,3.5vw,48px)] leading-tight"
+                  data-string="split"
+                  data-string-split="line[center]|char-line[center]"
+                >
                   Why what you've tried doesn't work.
                 </h2>
               </div>
-              <div className="overflow-hidden">
-                <p className="reveal-line font-sans text-muted-foreground text-[13px] leading-[1.85] translate-y-full opacity-0">
+              <div className="overflow-hidden" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+                <p className="st-reveal-line font-sans text-muted-foreground text-[13px] leading-[1.85]">
                   The world is full of advice, blockers, and schedules. None understand human behavior in the moment of decision.
                 </p>
               </div>
             </div>
 
-            <div className="why-cards-col lg:col-span-8 will-change-transform">
+            <div className="why-cards-col st-why-cards lg:col-span-8 will-change-transform">
               {[
                 {
                   title: "YouTube & Books",
@@ -414,7 +337,9 @@ export default function Landing() {
               ].map((block, i) => (
                 <div
                   key={i}
-                  className="solution-row group border-b border-border/10 py-10 flex gap-8 items-start hover:translate-x-2 transition-transform duration-500 ease-out"
+                  className="solution-row st-solution-row group border-b border-border/10 py-10 flex gap-8 items-start hover:translate-x-2 transition-transform duration-500 ease-out"
+                  data-string="progress"
+                  data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)"
                 >
                   <span className="font-sans text-[10px] tracking-[0.38em] text-foreground/18 shrink-0 mt-1 w-5">0{i + 1}</span>
                   <div>
@@ -430,48 +355,74 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── INSIGHT — PINNED SCRUB ─────────────────────────────────────── */}
-      <section className="insight-section relative flex items-center justify-center bg-primary text-primary-foreground overflow-hidden"
-        style={{ minHeight: "100vh" }}
+      {/* ── INSIGHT — sticky + StringProgress (replaces GSAP pin) ───────── */}
+      <section
+        className="insight-section relative bg-primary text-primary-foreground overflow-hidden min-h-[280vh]"
+        // StringProgress: long scrub timeline → --insight for sticky stack
+        data-string="progress"
+        data-string-id="insight"
+        data-string-key="--insight"
+        data-string-easing="linear"
       >
-        {/* Ghost text that scales up dramatically */}
-        <div className="insight-ghost absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none select-none opacity-0">
-          <span className="font-serif text-[clamp(80px,18vw,260px)] leading-none font-bold text-primary-foreground/[0.06] whitespace-nowrap tracking-tight">
-            INTERVENTION
-          </span>
-        </div>
-
-        <div className="insight-quote relative max-w-4xl mx-auto px-6 md:px-14 text-center opacity-0">
-          <span className="font-sans text-[10px] tracking-[0.45em] uppercase text-primary-foreground/30 block mb-12">
-            The insight
-          </span>
-          <blockquote className="font-serif text-[clamp(22px,4vw,52px)] leading-[1.28] text-balance">
-            Intervention beats willpower.{" "}
-            <span className="italic opacity-45">
-              The right advice at the wrong time doesn't work.
-              The right help at the right moment does.
+        <div className="insight-sticky sticky top-0 flex min-h-screen w-full flex-col items-center justify-center overflow-hidden">
+          {/* StringProgressPart: ghost phase slice → --progress-slice */}
+          <div
+            className="insight-ghost st-insight-ghost absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none select-none"
+            data-string="progress-part"
+            data-string-id="insightGhostPart"
+            data-string-part-of="insight[0-0.5]"
+          >
+            <span className="font-serif text-[clamp(80px,18vw,260px)] leading-none font-bold text-primary-foreground/[0.06] whitespace-nowrap tracking-tight">
+              INTERVENTION
             </span>
-          </blockquote>
+          </div>
+
+          <div
+            className="insight-quote st-insight-quote relative z-10 max-w-4xl mx-auto px-6 md:px-14 text-center"
+            data-string="progress-part"
+            data-string-id="insightQuotePart"
+            data-string-part-of="insight[0.2-0.92]"
+          >
+            <span className="font-sans text-[10px] tracking-[0.45em] uppercase text-primary-foreground/30 block mb-12">
+              The insight
+            </span>
+            <blockquote className="font-serif text-[clamp(22px,4vw,52px)] leading-[1.28] text-balance">
+              Intervention beats willpower.{" "}
+              <span className="italic opacity-45">
+                The right advice at the wrong time doesn't work.
+                The right help at the right moment does.
+              </span>
+            </blockquote>
+          </div>
         </div>
       </section>
 
       {/* ── HOW ELVANA WORKS ───────────────────────────────────────────── */}
       <section className="relative py-44 px-6 md:px-14 lg:px-24 overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none select-none">
-          <span className="font-serif text-[clamp(100px,18vw,280px)] leading-none font-bold text-foreground/[0.022] tracking-tight">
+          <span
+            className="st-glide-watermark font-serif text-[clamp(100px,18vw,280px)] leading-none font-bold text-foreground/[0.022] tracking-tight"
+            data-string="glide"
+            data-string-glide="0.36"
+            data-string-id="solution-watermark"
+          >
             ELVANA
           </span>
         </div>
 
         <div className="relative max-w-6xl mx-auto z-10">
           <div className="mb-20">
-            <div className="overflow-hidden mb-4">
-              <span className="reveal-line font-sans text-[11px] tracking-[0.38em] uppercase text-muted-foreground/35 block translate-y-full opacity-0">
+            <div className="overflow-hidden mb-4" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+              <span className="st-reveal-line font-sans text-[11px] tracking-[0.38em] uppercase text-muted-foreground/35 block">
                 The solution
               </span>
             </div>
-            <div className="overflow-hidden">
-              <h2 className="reveal-line font-serif text-[clamp(32px,5vw,60px)] leading-tight translate-y-full opacity-0">
+            <div className="overflow-hidden" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+              <h2
+                className="st-split-section font-serif text-[clamp(32px,5vw,60px)] leading-tight"
+                data-string="split"
+                data-string-split="line[center]|char-line[center]"
+              >
                 How Elvana works.
               </h2>
             </div>
@@ -488,7 +439,9 @@ export default function Landing() {
             ].map((feature, i) => (
               <div
                 key={i}
-                className="feature-item group border-t border-border/10 py-10 flex gap-6 items-start hover:translate-x-1 transition-transform duration-400"
+                className="feature-item st-feature-item group border-t border-border/10 py-10 flex gap-6 items-start hover:translate-x-1 transition-transform duration-400"
+                data-string="progress"
+                data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)"
               >
                 <motion.div
                   className="mt-2.5 w-1 h-1 rounded-full bg-accent/25 shrink-0"
@@ -513,30 +466,43 @@ export default function Landing() {
       {/* ── WAITLIST ───────────────────────────────────────────────────── */}
       <section id="waitlist" className="relative py-48 px-6 md:px-14 lg:px-24 overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none select-none">
-          <span className="font-serif text-[clamp(80px,14vw,200px)] leading-none font-bold text-foreground/[0.02] tracking-tight">
+          <span
+            className="st-glide-watermark font-serif text-[clamp(80px,14vw,200px)] leading-none font-bold text-foreground/[0.02] tracking-tight"
+            data-string="glide"
+            data-string-glide="0.38"
+            data-string-id="waitlist-watermark"
+          >
             WAITLIST
           </span>
         </div>
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[1000px] h-[400px] rounded-full bg-[#DED4E6]/[0.05] blur-[180px] pointer-events-none" />
 
-        <div className="waitlist-inner relative max-w-3xl mx-auto text-center z-10">
-          <div className="overflow-hidden mb-5">
-            <span className="reveal-line font-sans text-[11px] tracking-[0.38em] uppercase text-muted-foreground/35 block translate-y-full opacity-0">
+        <div className="waitlist-inner st-waitlist-inner relative max-w-3xl mx-auto text-center z-10">
+          <div className="overflow-hidden mb-5" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+            <span className="st-reveal-line font-sans text-[11px] tracking-[0.38em] uppercase text-muted-foreground/35 block">
               Early access
             </span>
           </div>
-          <div className="overflow-hidden mb-3">
-            <h2 className="reveal-line font-serif text-[clamp(36px,5.5vw,76px)] leading-[1.1] translate-y-full opacity-0">
+          <div className="overflow-hidden mb-3" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+            <h2
+              className="st-split-waitlist font-serif text-[clamp(36px,5.5vw,76px)] leading-[1.1]"
+              data-string="split"
+              data-string-split="line[center]|char-line[center]"
+            >
               The right help,
             </h2>
           </div>
-          <div className="overflow-hidden mb-14">
-            <h2 className="reveal-line font-serif text-[clamp(36px,5.5vw,76px)] leading-[1.1] translate-y-full opacity-0">
+          <div className="overflow-hidden mb-14" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+            <h2
+              className="st-split-waitlist font-serif text-[clamp(36px,5.5vw,76px)] leading-[1.1]"
+              data-string="split"
+              data-string-split="line[center]|char-line[center]"
+            >
               right when you need it.
             </h2>
           </div>
-          <div className="overflow-hidden mb-16">
-            <p className="reveal-line font-sans text-lg text-muted-foreground max-w-sm mx-auto leading-relaxed translate-y-full opacity-0">
+          <div className="overflow-hidden mb-16" data-string="progress" data-string-easing="cubic-bezier(0.16, 1, 0.3, 1)">
+            <p className="st-reveal-line font-sans text-lg text-muted-foreground max-w-sm mx-auto leading-relaxed">
               Get early access by joining the waitlist.
             </p>
           </div>
@@ -629,7 +595,10 @@ export default function Landing() {
               href={href}
               target={href.startsWith("http") ? "_blank" : undefined}
               rel="noopener noreferrer"
-              className="hover:text-primary transition-colors duration-400 cursor-none"
+              data-string="magnetic"
+              data-string-strength="0.18"
+              data-string-radius="100"
+              className="st-magnetic hover:text-primary transition-colors duration-400 cursor-none"
             >
               {label}
             </a>
@@ -646,6 +615,8 @@ export default function Landing() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.35 }}
+            // string-isolation: wheel events stay on modal (StringTune scroll isolation)
+            data-string-isolation=""
             className="fixed inset-0 z-[100] bg-background/96 backdrop-blur-xl flex items-center justify-center p-4 md:p-16 cursor-none"
             onClick={() => setIsVideoOpen(false)}
           >

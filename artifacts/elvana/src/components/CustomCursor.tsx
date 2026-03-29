@@ -31,6 +31,11 @@ export function CustomCursor() {
     resize();
     window.addEventListener("resize", resize);
 
+    /** 1 when pointer is over StringTune magnetic targets (data-string="magnetic" / .st-magnetic) */
+    let magneticTarget = 0;
+    /** Smoothed follow of magneticTarget so the trail eases instead of popping */
+    let magneticBlend = 0;
+
     const onMove = (e: MouseEvent) => {
       prev.x = mouse.x;
       prev.y = mouse.y;
@@ -39,6 +44,9 @@ export function CustomCursor() {
       const dx = mouse.x - prev.x;
       const dy = mouse.y - prev.y;
       velocity = Math.min(Math.sqrt(dx * dx + dy * dy), 60);
+
+      const hit = document.elementFromPoint(e.clientX, e.clientY);
+      magneticTarget = hit?.closest?.("[data-string=\"magnetic\"], .st-magnetic") ? 1 : 0;
     };
     const onLeave = () => { inside = false; };
     const onEnter = () => { inside = true; };
@@ -58,6 +66,9 @@ export function CustomCursor() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (!inside) return;
 
+      magneticBlend += (magneticTarget - magneticBlend) * 0.14;
+      const trailDim = 1 - magneticBlend * 0.52;
+
       // Update bead chain: bead[0] chases mouse, bead[i] chases bead[i-1]
       const target0 = { x: mouse.x, y: mouse.y };
       const lerpFactor0 = LERP_BASE + LERP_STEP * 0;
@@ -76,7 +87,7 @@ export function CustomCursor() {
       // Draw trail — from tail to head so head renders on top
       for (let i = N - 1; i >= 0; i--) {
         const t = 1 - i / N; // 0 = tail, 1 = head
-        const alpha = t * t * 0.65 * (inside ? 1 : 0);
+        const alpha = t * t * 0.65 * trailDim * (inside ? 1 : 0);
         const radius = (0.8 + t * 3.8 * velScale) * (0.5 + t * 0.5);
 
         if (radius < 0.3) continue;
@@ -103,10 +114,10 @@ export function CustomCursor() {
       }
 
       // Draw the live cursor dot right on top of the mouse
-      const cursorAlpha = 0.92;
+      const cursorAlpha = 0.92 * (0.72 + 0.28 * (1 - magneticBlend));
       // Glow
       const cGrd = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 16);
-      cGrd.addColorStop(0, `rgba(241,234,222,0.2)`);
+      cGrd.addColorStop(0, `rgba(241,234,222,${0.2 * (0.75 + 0.25 * (1 - magneticBlend))})`);
       cGrd.addColorStop(1, `rgba(241,234,222,0)`);
       ctx.beginPath();
       ctx.arc(mouse.x, mouse.y, 16, 0, Math.PI * 2);
