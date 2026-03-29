@@ -1,122 +1,130 @@
-import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useSpring } from "framer-motion";
+import { useEffect, useRef } from "react";
+
+interface TrailPoint {
+  x: number;
+  y: number;
+  time: number;
+}
 
 export function CustomCursor() {
-  const cursorX = useMotionValue(-100);
-  const cursorY = useMotionValue(-100);
-
-  const springConfig = { damping: 28, stiffness: 300, mass: 0.5 };
-  const ringSpringConfig = { damping: 22, stiffness: 150, mass: 0.8 };
-
-  const dotX = useSpring(cursorX, springConfig);
-  const dotY = useSpring(cursorY, springConfig);
-  const ringX = useSpring(cursorX, ringSpringConfig);
-  const ringY = useSpring(cursorY, ringSpringConfig);
-
-  const [isHovering, setIsHovering] = useState(false);
-  const [isClicking, setIsClicking] = useState(false);
-  const [isHidden, setIsHidden] = useState(false);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const trailRef = useRef<TrailPoint[]>([]);
+  const mouseRef = useRef({ x: -200, y: -200 });
+  const rafRef = useRef<number>(0);
+  const isInsideRef = useRef(true);
 
   useEffect(() => {
-    if (window.matchMedia("(pointer: coarse)").matches) {
-      setIsTouchDevice(true);
-      return;
-    }
+    if (window.matchMedia("(pointer: coarse)").matches) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      cursorX.set(e.clientX);
-      cursorY.set(e.clientY);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     };
+    resize();
+    window.addEventListener("resize", resize);
 
-    const handleMouseDown = () => setIsClicking(true);
-    const handleMouseUp = () => setIsClicking(false);
+    const onMouseMove = (e: MouseEvent) => {
+      mouseRef.current = { x: e.clientX, y: e.clientY };
+      trailRef.current.push({ x: e.clientX, y: e.clientY, time: Date.now() });
+    };
+    const onMouseLeave = () => { isInsideRef.current = false; };
+    const onMouseEnter = () => { isInsideRef.current = true; };
 
-    const handleMouseEnter = () => setIsHidden(false);
-    const handleMouseLeave = () => setIsHidden(true);
+    window.addEventListener("mousemove", onMouseMove);
+    document.documentElement.addEventListener("mouseleave", onMouseLeave);
+    document.documentElement.addEventListener("mouseenter", onMouseEnter);
 
-    const handleHoverStart = (e: Event) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "A" ||
-        target.tagName === "BUTTON" ||
-        target.closest("a") ||
-        target.closest("button") ||
-        target.getAttribute("role") === "button" ||
-        target.style.cursor === "pointer" ||
-        window.getComputedStyle(target).cursor === "pointer"
-      ) {
-        setIsHovering(true);
+    const TRAIL_DURATION = 520; // ms the trail lives
+    const MAX_RADIUS = 4.5;
+    const MIN_RADIUS = 0.8;
+
+    const draw = () => {
+      rafRef.current = requestAnimationFrame(draw);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const now = Date.now();
+
+      // Prune old points
+      trailRef.current = trailRef.current.filter(
+        (p) => now - p.time < TRAIL_DURATION
+      );
+
+      const trail = trailRef.current;
+      if (trail.length < 2) return;
+
+      // Draw each point as a glowing orb fading out by age
+      for (let i = 0; i < trail.length; i++) {
+        const point = trail[i];
+        const age = now - point.time;
+        const progress = 1 - age / TRAIL_DURATION; // 1 = fresh, 0 = old
+        const eased = progress * progress; // quadratic ease-out
+
+        const radius = MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * eased;
+        const alpha = eased * 0.7;
+
+        // Outer glow
+        const grd = ctx.createRadialGradient(
+          point.x, point.y, 0,
+          point.x, point.y, radius * 3
+        );
+        grd.addColorStop(0, `rgba(241, 234, 222, ${alpha * 0.5})`);
+        grd.addColorStop(0.4, `rgba(222, 212, 230, ${alpha * 0.25})`);
+        grd.addColorStop(1, `rgba(222, 212, 230, 0)`);
+
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius * 3, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+
+        // Core dot
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(241, 234, 222, ${alpha})`;
+        ctx.fill();
+      }
+
+      // Draw the live cursor dot on top
+      if (isInsideRef.current) {
+        const { x, y } = mouseRef.current;
+
+        // Glow
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, 14);
+        grd.addColorStop(0, "rgba(241, 234, 222, 0.18)");
+        grd.addColorStop(1, "rgba(241, 234, 222, 0)");
+        ctx.beginPath();
+        ctx.arc(x, y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+
+        // Solid core
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(241, 234, 222, 0.9)";
+        ctx.fill();
       }
     };
 
-    const handleHoverEnd = () => setIsHovering(false);
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mouseup", handleMouseUp);
-    document.documentElement.addEventListener("mouseleave", handleMouseLeave);
-    document.documentElement.addEventListener("mouseenter", handleMouseEnter);
-    document.addEventListener("mouseover", handleHoverStart);
-    document.addEventListener("mouseout", handleHoverEnd);
+    rafRef.current = requestAnimationFrame(draw);
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("mouseup", handleMouseUp);
-      document.documentElement.removeEventListener("mouseleave", handleMouseLeave);
-      document.documentElement.removeEventListener("mouseenter", handleMouseEnter);
-      document.removeEventListener("mouseover", handleHoverStart);
-      document.removeEventListener("mouseout", handleHoverEnd);
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMouseMove);
+      document.documentElement.removeEventListener("mouseleave", onMouseLeave);
+      document.documentElement.removeEventListener("mouseenter", onMouseEnter);
     };
   }, []);
 
-  if (isTouchDevice) return null;
-
   return (
-    <>
-      {/* Outer ring — slower, lags behind */}
-      <motion.div
-        className="pointer-events-none fixed top-0 left-0 z-[9999] mix-blend-difference"
-        style={{
-          x: ringX,
-          y: ringY,
-          translateX: "-50%",
-          translateY: "-50%",
-          opacity: isHidden ? 0 : 1,
-        }}
-        animate={{
-          width: isHovering ? 56 : isClicking ? 20 : 36,
-          height: isHovering ? 56 : isClicking ? 20 : 36,
-          borderRadius: "50%",
-        }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
-      >
-        <div
-          className="w-full h-full rounded-full border border-[#F1EADE]"
-          style={{ opacity: isHovering ? 0.4 : 0.6 }}
-        />
-      </motion.div>
-
-      {/* Inner dot — snappy, precise */}
-      <motion.div
-        className="pointer-events-none fixed top-0 left-0 z-[9999] mix-blend-difference"
-        style={{
-          x: dotX,
-          y: dotY,
-          translateX: "-50%",
-          translateY: "-50%",
-          opacity: isHidden ? 0 : 1,
-        }}
-        animate={{
-          width: isHovering ? 6 : isClicking ? 12 : 5,
-          height: isHovering ? 6 : isClicking ? 12 : 5,
-          borderRadius: "50%",
-        }}
-        transition={{ duration: 0.15, ease: "easeOut" }}
-      >
-        <div className="w-full h-full rounded-full bg-[#F1EADE]" />
-      </motion.div>
-    </>
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none fixed inset-0 z-[9999]"
+      style={{ mixBlendMode: "screen" }}
+    />
   );
 }
