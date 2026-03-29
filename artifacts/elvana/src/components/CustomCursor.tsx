@@ -1,25 +1,28 @@
 import { useEffect, useRef } from "react";
 
-interface TrailPoint {
-  x: number;
-  y: number;
-  time: number;
-}
+const N = 16; // number of trail beads
+const LERP_BASE = 0.12;
+const LERP_STEP = 0.012;
 
 export function CustomCursor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const trailRef = useRef<TrailPoint[]>([]);
-  const mouseRef = useRef({ x: -200, y: -200 });
-  const rafRef = useRef<number>(0);
-  const isInsideRef = useRef(true);
 
   useEffect(() => {
     if (window.matchMedia("(pointer: coarse)").matches) return;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+
+    // Track actual cursor
+    const mouse = { x: -300, y: -300 };
+    const prev = { x: -300, y: -300 };
+    let velocity = 0;
+    let inside = true;
+
+    // Trail beads — each one follows the previous with lerp
+    const beads = Array.from({ length: N }, () => ({ x: -300, y: -300 }));
+
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -28,95 +31,102 @@ export function CustomCursor() {
     resize();
     window.addEventListener("resize", resize);
 
-    const onMouseMove = (e: MouseEvent) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
-      trailRef.current.push({ x: e.clientX, y: e.clientY, time: Date.now() });
+    const onMove = (e: MouseEvent) => {
+      prev.x = mouse.x;
+      prev.y = mouse.y;
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+      const dx = mouse.x - prev.x;
+      const dy = mouse.y - prev.y;
+      velocity = Math.min(Math.sqrt(dx * dx + dy * dy), 60);
     };
-    const onMouseLeave = () => { isInsideRef.current = false; };
-    const onMouseEnter = () => { isInsideRef.current = true; };
+    const onLeave = () => { inside = false; };
+    const onEnter = () => { inside = true; };
 
-    window.addEventListener("mousemove", onMouseMove);
-    document.documentElement.addEventListener("mouseleave", onMouseLeave);
-    document.documentElement.addEventListener("mouseenter", onMouseEnter);
+    window.addEventListener("mousemove", onMove);
+    document.documentElement.addEventListener("mouseleave", onLeave);
+    document.documentElement.addEventListener("mouseenter", onEnter);
 
-    const TRAIL_DURATION = 520; // ms the trail lives
-    const MAX_RADIUS = 4.5;
-    const MIN_RADIUS = 0.8;
+    let raf: number;
 
     const draw = () => {
-      rafRef.current = requestAnimationFrame(draw);
+      raf = requestAnimationFrame(draw);
+
+      // Decay velocity
+      velocity *= 0.85;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!inside) return;
 
-      const now = Date.now();
+      // Update bead chain: bead[0] chases mouse, bead[i] chases bead[i-1]
+      const target0 = { x: mouse.x, y: mouse.y };
+      const lerpFactor0 = LERP_BASE + LERP_STEP * 0;
+      beads[0].x = lerp(beads[0].x, target0.x, lerpFactor0);
+      beads[0].y = lerp(beads[0].y, target0.y, lerpFactor0);
 
-      // Prune old points
-      trailRef.current = trailRef.current.filter(
-        (p) => now - p.time < TRAIL_DURATION
-      );
+      for (let i = 1; i < N; i++) {
+        const lf = LERP_BASE + LERP_STEP * i;
+        beads[i].x = lerp(beads[i].x, beads[i - 1].x, lf * 0.6);
+        beads[i].y = lerp(beads[i].y, beads[i - 1].y, lf * 0.6);
+      }
 
-      const trail = trailRef.current;
-      if (trail.length < 2) return;
+      // Velocity-based sizing: fast = bigger trail
+      const velScale = Math.min(1 + velocity / 40, 2.2);
 
-      // Draw each point as a glowing orb fading out by age
-      for (let i = 0; i < trail.length; i++) {
-        const point = trail[i];
-        const age = now - point.time;
-        const progress = 1 - age / TRAIL_DURATION; // 1 = fresh, 0 = old
-        const eased = progress * progress; // quadratic ease-out
+      // Draw trail — from tail to head so head renders on top
+      for (let i = N - 1; i >= 0; i--) {
+        const t = 1 - i / N; // 0 = tail, 1 = head
+        const alpha = t * t * 0.65 * (inside ? 1 : 0);
+        const radius = (0.8 + t * 3.8 * velScale) * (0.5 + t * 0.5);
 
-        const radius = MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * eased;
-        const alpha = eased * 0.7;
+        if (radius < 0.3) continue;
 
-        // Outer glow
+        // Glow ring around each bead
+        const glowR = radius * 3.5;
         const grd = ctx.createRadialGradient(
-          point.x, point.y, 0,
-          point.x, point.y, radius * 3
+          beads[i].x, beads[i].y, 0,
+          beads[i].x, beads[i].y, glowR
         );
-        grd.addColorStop(0, `rgba(241, 234, 222, ${alpha * 0.5})`);
-        grd.addColorStop(0.4, `rgba(222, 212, 230, ${alpha * 0.25})`);
-        grd.addColorStop(1, `rgba(222, 212, 230, 0)`);
-
+        grd.addColorStop(0, `rgba(241,234,222,${alpha * 0.28})`);
+        grd.addColorStop(0.5, `rgba(222,212,230,${alpha * 0.08})`);
+        grd.addColorStop(1, `rgba(222,212,230,0)`);
         ctx.beginPath();
-        ctx.arc(point.x, point.y, radius * 3, 0, Math.PI * 2);
+        ctx.arc(beads[i].x, beads[i].y, glowR, 0, Math.PI * 2);
         ctx.fillStyle = grd;
         ctx.fill();
 
-        // Core dot
+        // Core bead
         ctx.beginPath();
-        ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(241, 234, 222, ${alpha})`;
+        ctx.arc(beads[i].x, beads[i].y, Math.max(0.3, radius), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(241,234,222,${alpha})`;
         ctx.fill();
       }
 
-      // Draw the live cursor dot on top
-      if (isInsideRef.current) {
-        const { x, y } = mouseRef.current;
-
-        // Glow
-        const grd = ctx.createRadialGradient(x, y, 0, x, y, 14);
-        grd.addColorStop(0, "rgba(241, 234, 222, 0.18)");
-        grd.addColorStop(1, "rgba(241, 234, 222, 0)");
-        ctx.beginPath();
-        ctx.arc(x, y, 14, 0, Math.PI * 2);
-        ctx.fillStyle = grd;
-        ctx.fill();
-
-        // Solid core
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(241, 234, 222, 0.9)";
-        ctx.fill();
-      }
+      // Draw the live cursor dot right on top of the mouse
+      const cursorAlpha = 0.92;
+      // Glow
+      const cGrd = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 16);
+      cGrd.addColorStop(0, `rgba(241,234,222,0.2)`);
+      cGrd.addColorStop(1, `rgba(241,234,222,0)`);
+      ctx.beginPath();
+      ctx.arc(mouse.x, mouse.y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = cGrd;
+      ctx.fill();
+      // Dot
+      ctx.beginPath();
+      ctx.arc(mouse.x, mouse.y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(241,234,222,${cursorAlpha})`;
+      ctx.fill();
     };
 
-    rafRef.current = requestAnimationFrame(draw);
+    raf = requestAnimationFrame(draw);
 
     return () => {
-      cancelAnimationFrame(rafRef.current);
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      window.removeEventListener("mousemove", onMouseMove);
-      document.documentElement.removeEventListener("mouseleave", onMouseLeave);
-      document.documentElement.removeEventListener("mouseenter", onMouseEnter);
+      window.removeEventListener("mousemove", onMove);
+      document.documentElement.removeEventListener("mouseleave", onLeave);
+      document.documentElement.removeEventListener("mouseenter", onEnter);
     };
   }, []);
 

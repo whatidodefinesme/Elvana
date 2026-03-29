@@ -6,6 +6,7 @@ import Landing from "@/pages/Landing";
 import NotFound from "@/pages/not-found";
 import { CustomCursor } from "@/components/CustomCursor";
 import { ScrollProgress } from "@/components/ScrollProgress";
+import { SmoothScroll } from "@/components/SmoothScroll";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,12 +30,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <CustomCursor />
-        <ScrollProgress />
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
+        <SmoothScroll>
+          <CustomCursor />
+          <ScrollProgress />
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </SmoothScroll>
       </TooltipProvider>
     </QueryClientProvider>
   );
