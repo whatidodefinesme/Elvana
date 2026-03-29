@@ -218,9 +218,9 @@ importers:
 
   artifacts/elvana:
     dependencies:
-      gsap:
-        specifier: ^3.14.2
-        version: 3.14.2
+      '@fiddle-digital/string-tune':
+        specifier: ^1.1.53
+        version: 1.1.53
       lenis:
         specifier: ^1.3.21
         version: 1.3.21(react@19.1.0)
@@ -755,6 +755,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [linux]
+
+  '@fiddle-digital/string-tune@1.1.53':
+    resolution: {integrity: sha512-UTqIh1dQqF1khTTONxdgv60ldysHoLCnFenbMe++TyknUDDZil2Aa8u14raIVD+bPJdWJMm2auEAKFDZ0FYhuQ==}
 
   '@floating-ui/core@1.7.5':
     resolution: {integrity: sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ==}
@@ -2284,9 +2287,6 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  gsap@3.14.2:
-    resolution: {integrity: sha512-P8/mMxVLU7o4+55+1TCnQrPmgjPKnwkzkXOK1asnR9Jg2lna4tEY5qBJjMmAaOBDDZWtlRjBXjLa0w53G/uBLA==}
-
   has-symbols@1.1.0:
     resolution: {integrity: sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==}
     engines: {node: '>= 0.4'}
@@ -3317,6 +3317,8 @@ snapshots:
 
   '@esbuild/linux-x64@0.27.3':
     optional: true
+
+  '@fiddle-digital/string-tune@1.1.53': {}
 
   '@floating-ui/core@1.7.5':
     dependencies:
@@ -4907,8 +4909,6 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
-
-  gsap@3.14.2: {}
 
   has-symbols@1.1.0: {}
 
